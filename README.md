@@ -1,5 +1,5 @@
 # wordlist-generator
-Generates wordlists from keywords, dates, and patterns. I made this as a learning project — it's one of the classic beginner Python exercises in the security/CTF space.
+Generates wordlists from keywords, dates, and patterns. I made this as a learning project - it's one of the classic beginner Python exercises in the security/CTF space.
 
 It takes things you know about a target (name, birthday, common words) and spits out a bunch of variations: different casings, leet speak, date formats, combinations, etc.
 
@@ -49,4 +49,4 @@ Patterns let you add common suffixes/prefixes: `{w}123` becomes `alice123`, `bob
 ## Notes
 This is for CTF challenges, security labs, and learning purposes only. Only use it on systems you own or have explicit permission to test.
 
-First real Python project I'm putting on GitHub — feedback welcome.
+First real Python project I'm putting on GitHub - feedback welcome.
