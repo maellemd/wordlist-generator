@@ -2,6 +2,8 @@ import itertools
 import csv
 import argparse
 import sys
+import math
+from pathlib import Path
 from datetime import datetime
 
 def get_variants(word):
@@ -37,7 +39,7 @@ def date_to_formats(date_str):
             pass
 
     if dt is None:
-        print(f"  couldn't parse date: {date_str}, skipping")
+        print("  couldn't parse date, skipping", file=sys.stderr)
         return []
 
     return [
@@ -87,6 +89,23 @@ def passes_filter(word, min_len, need_digit, need_upper):
     return True
 
 
+def export_words(words: list[str], output: Path, include_csv: bool) -> None:
+    """Write new files only; never truncate an existing destination."""
+    csv_path = output.with_suffix(".csv")
+    if include_csv and output.resolve() == csv_path.resolve():
+        raise ValueError("TXT and CSV destinations must differ")
+    if include_csv and csv_path.exists():
+        raise FileExistsError(f"Destination already exists: {csv_path}")
+    with output.open("x", encoding="utf-8") as f:
+        f.write("\n".join(words) + "\n")
+    if include_csv:
+        with csv_path.open("x", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["index", "word", "length"])
+            for i, word in enumerate(words, 1):
+                writer.writerow([i, word, len(word)])
+
+
 def main():
     parser = argparse.ArgumentParser(description="generate wordlists from keywords and dates")
 
@@ -102,8 +121,18 @@ def main():
 
     args = parser.parse_args()
 
+    if args.min_length < 0 or not 1 <= args.max_combo <= 5:
+        parser.error("minimum length must be nonnegative; max-combo must be 1–5")
+    # Bound the workload before creating any result lists.
+    n = len(args.keywords)
+    inputs = args.keywords + args.dates + args.patterns
+    if len(inputs) > 100 or any(len(value) > 100 for value in inputs):
+        parser.error("too many or overly long inputs (limit: 100 each)")
+    estimate = 7 * n + 6 * len(args.dates) + n * len(args.patterns)
+    estimate += sum(math.perm(n, r) for r in range(2, min(n, args.max_combo) + 1))
+    if estimate > 10000:
+        parser.error("requested workload exceeds the educational limit of 10,000 entries")
     print("\ngenerating wordlist...")
-    print(f"keywords: {args.keywords}")
 
     all_words = []
 
@@ -111,7 +140,7 @@ def main():
     for kw in args.keywords:
         v = get_variants(kw)
         all_words.extend(v)
-        print(f"  {kw} -> {len(v)} variants")
+        print(f"  {len(v)} variants")
 
     # date formats
     if args.dates:
@@ -146,20 +175,12 @@ def main():
         print("nothing left after filtering, try loosening the options")
         sys.exit(1)
 
-    # save txt
-    with open(args.output, "w", encoding="utf-8") as f:
-        f.write("\n".join(all_words))
-    print(f"\nsaved {len(all_words)} words to {args.output}")
-
-    # save csv if asked
-    if args.csv:
-        csv_path = args.output.replace(".txt", ".csv")
-        with open(csv_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(["index", "word", "length"])
-            for i, word in enumerate(all_words, 1):
-                writer.writerow([i, word, len(word)])
-        print(f"saved csv to {csv_path}")
+    try:
+        export_words(all_words, Path(args.output), args.csv)
+    except (OSError, ValueError) as exc:
+        print(f"Export failed: {exc}. Check whether a new output file was created.", file=sys.stderr)
+        sys.exit(1)
+    print(f"Saved {len(all_words)} words to {args.output}")
 
 
 if __name__ == "__main__":
