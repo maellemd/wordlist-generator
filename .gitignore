@@ -3,3 +3,6 @@ __pycache__/
 wordlist.txt
 wordlist.csv
 .venv/
+# Generated demonstration files
+/sample.txt
+/sample.csv
